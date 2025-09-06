@@ -44,14 +44,6 @@ spec:
         preferredDuringSchedulingIgnoredDuringExecution:
           weight: 100
       
-      # Pre-promotion analysis (optional)
-      prePromotionAnalysis:
-        templates:
-        - templateName: success-rate
-        args:
-        - name: service-name
-          value: nginx-bluegreen-preview
-      
       # Active service (production traffic)
       activeService: nginx-bluegreen-active
       
@@ -89,31 +81,3 @@ spec:
   selector:
     app: nginx-bluegreen
     # Rollout controller will add the correct pod-template-hash
----
-# Analysis Template for automated testing (optional)
-apiVersion: argoproj.io/v1alpha1
-kind: AnalysisTemplate
-metadata:
-  name: success-rate
-  namespace: demo-bluegreen
-spec:
-  metrics:
-  - name: success-rate
-    # Simple success metric that always passes for demo
-    interval: 5s
-    successCondition: result >= 0.95
-    provider:
-      job:
-        spec:
-          template:
-            spec:
-              containers:
-              - name: test
-                image: alpine:latest
-                command: ["sh", "-c"]
-                args: 
-                - |
-                  # Simulate a test that always succeeds
-                  echo "0.99"
-              restartPolicy: Never
-          backoffLimit: 1
