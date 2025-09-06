@@ -1,22 +1,22 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: gitops-rollout
+  name: demo-app
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  name: gitops-nginx
-  namespace: gitops-rollout
+  name: nginx-rollout
+  namespace: demo-app
 spec:
-  replicas: 8
+  replicas: 5
   selector:
     matchLabels:
-      app: gitops-nginx
+      app: nginx-rollout
   template:
     metadata:
       labels:
-        app: gitops-nginx
+        app: nginx-rollout
     spec:
       containers:
       - name: nginx
@@ -46,11 +46,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: gitops-nginx
-  namespace: gitops-rollout
+  name: nginx-rollout
+  namespace: demo-app
 spec:
   ports:
   - port: 80
     targetPort: 80
   selector:
-    app: gitops-nginx
+    app: nginx-rollout
