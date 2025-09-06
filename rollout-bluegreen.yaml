@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-bluegreen
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: nginx-bluegreen
+  namespace: demo-bluegreen
+spec:
+  replicas: 5
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: nginx-bluegreen
+  template:
+    metadata:
+      labels:
+        app: nginx-bluegreen
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.26-alpine  # Starting with 1.26 version
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: 32Mi
+            cpu: 10m
+          limits:
+            memory: 128Mi
+            cpu: 100m
+  strategy:
+    blueGreen:
+      # Automatically promote the new version after 30 seconds
+      autoPromotionEnabled: false  # Manual promotion for demo
+      
+      # Keep the old version running for 30 seconds after switch
+      scaleDownDelaySeconds: 30
+      
+      # Anti-affinity to avoid pods on same node
+      antiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          weight: 100
+      
+      # Pre-promotion analysis (optional)
+      prePromotionAnalysis:
+        templates:
+        - templateName: success-rate
+        args:
+        - name: service-name
+          value: nginx-bluegreen-preview
+      
+      # Active service (production traffic)
+      activeService: nginx-bluegreen-active
+      
+      # Preview service (for testing new version)
+      previewService: nginx-bluegreen-preview
+---
+# Active Service - receives production traffic
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-bluegreen-active
+  namespace: demo-bluegreen
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  selector:
+    app: nginx-bluegreen
+    # Rollout controller will add the correct pod-template-hash
+---
+# Preview Service - for testing the new version
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-bluegreen-preview
+  namespace: demo-bluegreen
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  selector:
+    app: nginx-bluegreen
+    # Rollout controller will add the correct pod-template-hash
+---
+# Analysis Template for automated testing (optional)
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  namespace: demo-bluegreen
+spec:
+  metrics:
+  - name: success-rate
+    # Simple success metric that always passes for demo
+    interval: 5s
+    successCondition: result >= 0.95
+    provider:
+      job:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: test
+                image: alpine:latest
+                command: ["sh", "-c"]
+                args: 
+                - |
+                  # Simulate a test that always succeeds
+                  echo "0.99"
+              restartPolicy: Never
+          backoffLimit: 1
