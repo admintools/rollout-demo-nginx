@@ -21,7 +21,7 @@ spec:
       containers:
       - name: nginx
         # Using official nginx alpine image that supports ARM
-        image: nginx:alpine
+        image: nginx:1.27-alpine  # Updated version to trigger canary rollout
         ports:
         - containerPort: 80
         resources:
