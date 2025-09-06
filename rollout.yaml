@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitops-rollout
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: gitops-nginx
+  namespace: gitops-rollout
+spec:
+  replicas: 8
+  selector:
+    matchLabels:
+      app: gitops-nginx
+  template:
+    metadata:
+      labels:
+        app: gitops-nginx
+    spec:
+      containers:
+      - name: nginx
+        # Using official nginx alpine image that supports ARM
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: 32Mi
+            cpu: 10m
+          limits:
+            memory: 128Mi
+            cpu: 100m
+  strategy:
+    canary:
+      steps:
+      - setWeight: 20
+      - pause: {duration: 30s}
+      - setWeight: 40
+      - pause: {duration: 30s}
+      - setWeight: 60
+      - pause: {duration: 30s}
+      - setWeight: 80
+      - pause: {duration: 30s}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitops-nginx
+  namespace: gitops-rollout
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: gitops-nginx
